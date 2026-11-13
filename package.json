@@ -1,0 +1,14 @@
+{
+  "name": "pixel-runner-multiplayer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "像素跳跃多人联机中继服务器（静态页面 + WebSocket 房间）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "node build.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

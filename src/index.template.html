@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<!-- 本文件由 src/ 中的源码分块构建生成：请修改 src/ 后执行 node build.js -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>像素跳跃 · Pixel Runner</title>
+<style>
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #070a12;
+    overflow: hidden;
+    /* 移动端：禁止双击缩放、滑动回弹与长按选择，保证操作流畅 */
+    touch-action: none;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  canvas {
+    touch-action: none;
+    display: block;
+    width: min(960px, 96vw, 170.6vh);
+    height: auto;
+    aspect-ratio: 16 / 9;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow: 0 0 0 2px #1d2a44, 0 24px 70px rgba(0, 0, 0, 0.65);
+    border-radius: 4px;
+    background: #0b1220;
+  }
+
+  /* ---- 多人联机大厅（DOM 覆盖层，仅联机时显示） ---- */
+  #mpLobby {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+    background: rgba(4, 7, 14, 0.9);
+    color: #d7e3f7;
+    font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    touch-action: auto;
+  }
+  #mpLobby input {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  #mpLobby.open { display: flex; }
+  #mpPanel {
+    width: min(520px, 94vw);
+    max-height: 92vh;
+    overflow: auto;
+    box-sizing: border-box;
+    padding: 22px 24px 18px;
+    border: 2px solid #2a4a7a;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #142038, #0d1526);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  }
+  .mp-title { font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 2px; }
+  .mp-sub { font-size: 12px; color: #7fd6ff; margin: 4px 0 14px; }
+  .mp-status { font-size: 13px; color: #9fb3d1; margin-bottom: 14px; min-height: 18px; }
+  .mp-status.err { color: #ff8a8a; }
+  .mp-label { display: block; font-size: 13px; color: #9fb3d1; margin: 10px 0 6px; }
+  .mp-input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-family: inherit;
+    color: #ffffff;
+    background: #0b1220;
+    border: 2px solid #3a5a8a;
+    border-radius: 4px;
+    outline: none;
+  }
+  .mp-input:focus { border-color: #8adcff; }
+  .mp-code { letter-spacing: 6px; text-align: center; font-weight: 700; }
+  .mp-row { display: flex; gap: 10px; margin-top: 10px; align-items: center; }
+  .mp-btn {
+    padding: 10px 18px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #d7e3f7;
+    background: #16223c;
+    border: 2px solid #3a5a8a;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .mp-btn:hover { border-color: #8adcff; color: #ffffff; }
+  .mp-btn:disabled { opacity: 0.45; cursor: default; border-color: #3a5a8a; }
+  .mp-primary { background: #1d3f68; border-color: #8adcff; color: #ffffff; }
+  .mp-danger { border-color: #8a3a4a; color: #ffb0b0; }
+  .mp-mini { padding: 4px 10px; font-size: 12px; }
+  .mp-codebar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #9fb3d1;
+    margin-bottom: 12px;
+  }
+  .mp-codebar span { font-size: 22px; font-weight: 700; letter-spacing: 6px; color: #ffd23f; }
+  .mp-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .mp-member {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    font-size: 14px;
+    background: #101a2e;
+    border: 1px solid #2a4a7a;
+    border-radius: 4px;
+  }
+  .mp-member .tag { font-size: 12px; color: #9fb3d1; }
+  .mp-member.ready .tag { color: #7ff0a8; }
+  .mp-member .name { color: #ffffff; }
+  .mp-kick {
+    margin-left: 10px; padding: 4px 8px; font-size: 11px;
+    background: #2a1620; color: #ff8a8a; border: 1px solid #6a2a3a;
+    border-radius: 3px; cursor: pointer;
+  }
+  .mp-kick:hover { background: #4a1a28; }
+  .mp-actions { margin-top: 6px; flex-wrap: wrap; }
+  .mp-hint { margin-top: 14px; font-size: 12px; line-height: 1.7; color: #7f93b3; }
+  .mp-close { margin-top: 14px; width: 100%; }
+  .mp-room[hidden], .mp-setup[hidden] { display: none; }
+</style>
+</head>
+<body>
+<canvas id="game" width="960" height="540" aria-label="像素跳跃横版平台游戏"></canvas>
+
+<!-- 多人联机大厅（由 Net 模块控制显示） -->
+<div id="mpLobby">
+  <div id="mpPanel">
+    <div class="mp-title">多人联机</div>
+    <div class="mp-sub">房主电脑作为服务器 · 局域网 / 外网隧道均可加入</div>
+    <div id="mpStatus" class="mp-status">正在连接服务器…</div>
+
+    <div id="mpSetup" class="mp-setup">
+      <label class="mp-label" for="mpName">昵称</label>
+      <input id="mpName" class="mp-input" maxlength="8" placeholder="玩家昵称">
+      <div class="mp-row">
+        <button id="mpCreate" class="mp-btn mp-primary">创建房间</button>
+      </div>
+      <div class="mp-row">
+        <input id="mpCode" class="mp-input mp-code" maxlength="4" inputmode="numeric" placeholder="房间码">
+        <button id="mpJoin" class="mp-btn">加入房间</button>
+      </div>
+    </div>
+
+    <div id="mpRoom" class="mp-room" hidden>
+      <div class="mp-codebar">房间码 <span id="mpCodeShow">----</span>
+        <button id="mpCopy" class="mp-btn mp-mini">复制</button></div>
+      <div id="mpList" class="mp-list"></div>
+      <div class="mp-row mp-actions">
+        <button id="mpReady" class="mp-btn">准备</button>
+        <button id="mpStart" class="mp-btn mp-primary" hidden>开始游戏</button>
+        <button id="mpLeave" class="mp-btn mp-danger">离开房间</button>
+      </div>
+    </div>
+
+    <div id="mpHint" class="mp-hint"></div>
+    <button id="mpClose" class="mp-btn mp-close">关闭</button>
+  </div>
+</div>
+
+<script>/* @@GAME_CODE@@ */</script>
+</body>
+</html>
